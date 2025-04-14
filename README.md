@@ -18,7 +18,6 @@
 ✅ **Loop Handling** for a smooth user experience  
 ✅ **File Handling Mechanism** for secure transactions  
 ✅ **User-friendly Console UI** with **emoji-powered** messages 😎  
-
 ---
 
 ## 📸 **Demo Output (Screenshots)**  
