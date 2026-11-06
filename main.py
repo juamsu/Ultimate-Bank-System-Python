@@ -1,4 +1,7 @@
+import math
 import os
+
+MAX_NAME_LENGTH = 30
 
 
 class BankError(Exception):
@@ -9,6 +12,10 @@ class InvalidAmountError(BankError):
     """The amount is not valid for the requested operation."""
 
 
+class InvalidNameError(BankError):
+    """The account holder's name is not valid."""
+
+
 class InsufficientFundsError(BankError):
     """The account does not have enough balance for the withdrawal."""
 
@@ -17,27 +24,52 @@ class StorageError(BankError):
     """The accounts file could not be read, written or is corrupt."""
 
 
+def validate_name(name):
+    """Return the cleaned name or raise InvalidNameError.
+
+    Commas and line breaks are rejected because they are the separators of
+    the accounts file and would corrupt it.
+    """
+    name = name.strip()
+    if not name:
+        raise InvalidNameError("The name cannot be empty.")
+    if len(name) > MAX_NAME_LENGTH:
+        raise InvalidNameError(f"The name cannot be longer than {MAX_NAME_LENGTH} characters.")
+    if "," in name or "\n" in name or "\r" in name:
+        raise InvalidNameError("The name cannot contain commas or line breaks.")
+    return name
+
+
+def validate_amount(amount, allow_zero=False):
+    """Raise InvalidAmountError if the amount is not a usable money value."""
+    if not math.isfinite(amount):
+        raise InvalidAmountError("Invalid amount! It must be a finite number.")
+    if amount < 0:
+        raise InvalidAmountError("Invalid amount! Negative values are not allowed.")
+    if amount == 0 and not allow_zero:
+        raise InvalidAmountError("Invalid amount! It must be greater than zero.")
+
+
 class BankAccount:
     FILE_NAME = "accounts.txt"  # File to store account records
 
     def __init__(self, holder_name, balance=0):
         """Initialize the bank account with the holder's name and balance."""
-        self.holder_name = holder_name
+        validate_amount(balance, allow_zero=True)
+        self.holder_name = validate_name(holder_name)
         self.__balance = balance
 
     def deposit(self, amount):
         """Deposit money into the account and update the file."""
-        if amount <= 0:
-            raise InvalidAmountError("Invalid deposit amount! Please enter a positive number.")
+        validate_amount(amount)
         self._save_balance(self.__balance + amount)
         print(f"💰 Successfully deposited ${amount} | New Balance: ${self.__balance}")
 
     def withdraw(self, amount):
         """Withdraw money if sufficient balance is available and update the file."""
+        validate_amount(amount)
         if amount > self.__balance:
             raise InsufficientFundsError("Insufficient funds! Transaction failed.")
-        if amount <= 0:
-            raise InvalidAmountError("Invalid withdrawal amount! Please enter a positive number.")
         self._save_balance(self.__balance - amount)
         print(f"💸 Withdrawn: ${amount} | Remaining Balance: ${self.__balance}")
 
@@ -131,18 +163,27 @@ def handle_balance(account):
 
 
 def open_account():
-    """Ask for the holder's name; load the account or create a new one."""
-    name = input("👤 Enter Account Holder's Name: ")
-    account = BankAccount.load_account(name)
-    if account is None:
-        initial_balance = float(input("💵 Enter Initial Balance (or 0): "))
-        account = BankAccount(name, initial_balance)
-        account.update_account_file()
-        print(f"\n✅ New Account for {account.holder_name} created successfully! 🏦")
-    else:
-        print(f"\n🔄 Welcome back, {account.holder_name}! Your account is loaded successfully.")
-    account.display_balance()
-    return account
+    """Ask for the holder's name; load the account or create a new one.
+
+    Invalid input is reported and the question is repeated.
+    """
+    while True:
+        try:
+            name = validate_name(input("👤 Enter Account Holder's Name: "))
+            account = BankAccount.load_account(name)
+            if account is None:
+                initial_balance = float(input("💵 Enter Initial Balance (or 0): "))
+                account = BankAccount(name, initial_balance)
+                account.update_account_file()
+                print(f"\n✅ New Account for {account.holder_name} created successfully! 🏦")
+            else:
+                print(f"\n🔄 Welcome back, {account.holder_name}! Your account is loaded successfully.")
+            account.display_balance()
+            return account
+        except ValueError:
+            print("⚠️ Error: Please enter a valid number.")
+        except (InvalidNameError, InvalidAmountError) as error:
+            print(f"❌ {error}")
 
 
 def run_menu(account):
