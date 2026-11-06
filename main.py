@@ -3,18 +3,10 @@ import os
 class BankAccount:
     FILE_NAME = "accounts.txt"  # File to store account records
 
-    def __init__(self, holder_name, balance=0, existing=False):
+    def __init__(self, holder_name, balance=0):
         """Initialize the bank account with the holder's name and balance."""
         self.holder_name = holder_name
         self.__balance = balance
-
-        if not existing:
-            print(f"\n✅ New Account for {self.holder_name} created successfully! 🏦")
-        else:
-            print(f"\n🔄 Welcome back, {self.holder_name}! Your account is loaded successfully.")
-
-        self.display_balance()
-        self.update_account_file()
 
     def deposit(self, amount):
         """Deposit money into the account and update the file."""
@@ -40,34 +32,32 @@ class BankAccount:
         """Show current account balance."""
         print(f"📊 Current Balance for {self.holder_name}: ${self.__balance}")
 
-    def update_account_file(self):
-        """Update the account record in the file."""
+    @classmethod
+    def _read_accounts(cls):
+        """Return a dict {name: balance} with every record stored in the file."""
         accounts = {}
-
-        # Read existing accounts
-        if os.path.exists(self.FILE_NAME):
-            with open(self.FILE_NAME, "r") as file:
+        if os.path.exists(cls.FILE_NAME):
+            with open(cls.FILE_NAME, "r") as file:
                 for line in file:
                     name, balance = line.strip().split(",")
                     accounts[name] = float(balance)
+        return accounts
 
-        # Update or create new account record
+    def update_account_file(self):
+        """Update the account record in the file."""
+        accounts = self._read_accounts()
         accounts[self.holder_name] = self.__balance
 
-        # Write back updated accounts
         with open(self.FILE_NAME, "w") as file:
             for name, balance in accounts.items():
                 file.write(f"{name},{balance}\n")
 
     @classmethod
     def load_account(cls, name):
-        """Check if the account exists in the file and load balance if found."""
-        if os.path.exists(cls.FILE_NAME):
-            with open(cls.FILE_NAME, "r") as file:
-                for line in file:
-                    stored_name, balance = line.strip().split(",")
-                    if stored_name == name:
-                        return cls(name, float(balance), existing=True)
+        """Return the stored account for this name, or None if it does not exist."""
+        accounts = cls._read_accounts()
+        if name in accounts:
+            return cls(name, accounts[name])
         return None
 
 
@@ -107,6 +97,11 @@ def open_account():
     if account is None:
         initial_balance = float(input("💵 Enter Initial Balance (or 0): "))
         account = BankAccount(name, initial_balance)
+        account.update_account_file()
+        print(f"\n✅ New Account for {account.holder_name} created successfully! 🏦")
+    else:
+        print(f"\n🔄 Welcome back, {account.holder_name}! Your account is loaded successfully.")
+    account.display_balance()
     return account
 
 
