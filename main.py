@@ -43,7 +43,7 @@ class BankAccount:
     def update_account_file(self):
         """Update the account record in the file."""
         accounts = {}
-        
+
         # Read existing accounts
         if os.path.exists(self.FILE_NAME):
             with open(self.FILE_NAME, "r") as file:
@@ -70,41 +70,74 @@ class BankAccount:
                         return cls(name, float(balance), existing=True)
         return None
 
-# --- Main Interactive Menu ---
-print("\n🌟 Welcome to the Ultimate Bank System! 🌟")
 
-# Taking user details
-name = input("👤 Enter Account Holder's Name: ")
+# --- Menu options ---
+OPTION_DEPOSIT = 1
+OPTION_WITHDRAW = 2
+OPTION_BALANCE = 3
+OPTION_EXIT = 4
 
-# Check if the account exists
-account = BankAccount.load_account(name)
 
-if account is None:
-    initial_balance = float(input("💵 Enter Initial Balance (or 0): "))
-    account = BankAccount(name, initial_balance)
-
-# Menu-driven program
-while True:
+def show_menu():
     print("\n📌 MAIN MENU")
     print("1️⃣ Deposit")
     print("2️⃣ Withdraw")
     print("3️⃣ Check Balance")
     print("4️⃣ Exit")
 
-    try:
-        choice = int(input("👉 Enter your choice: "))
-        if choice == 1:
-            amount = float(input("💰 Enter amount to deposit: "))
-            account.deposit(amount)
-        elif choice == 2:
-            amount = float(input("💸 Enter amount to withdraw: "))
-            account.withdraw(amount)
-        elif choice == 3:
-            account.display_balance()
-        elif choice == 4:
-            print("\n👋 Thank you for using Ultimate Bank System! See you again!")
-            break
-        else:
-            print("⚠️ Invalid choice! Please enter a number between 1 and 4.")
-    except ValueError:
-        print("⚠️ Error: Please enter a valid number.")
+
+def handle_deposit(account):
+    amount = float(input("💰 Enter amount to deposit: "))
+    account.deposit(amount)
+
+
+def handle_withdraw(account):
+    amount = float(input("💸 Enter amount to withdraw: "))
+    account.withdraw(amount)
+
+
+def handle_balance(account):
+    account.display_balance()
+
+
+def open_account():
+    """Ask for the holder's name; load the account or create a new one."""
+    name = input("👤 Enter Account Holder's Name: ")
+    account = BankAccount.load_account(name)
+    if account is None:
+        initial_balance = float(input("💵 Enter Initial Balance (or 0): "))
+        account = BankAccount(name, initial_balance)
+    return account
+
+
+def run_menu(account):
+    """Menu loop: each option is mapped to its handler function."""
+    actions = {
+        OPTION_DEPOSIT: handle_deposit,
+        OPTION_WITHDRAW: handle_withdraw,
+        OPTION_BALANCE: handle_balance,
+    }
+    while True:
+        show_menu()
+        try:
+            choice = int(input("👉 Enter your choice: "))
+            if choice == OPTION_EXIT:
+                print("\n👋 Thank you for using Ultimate Bank System! See you again!")
+                break
+            action = actions.get(choice)
+            if action is None:
+                print("⚠️ Invalid choice! Please enter a number between 1 and 4.")
+            else:
+                action(account)
+        except ValueError:
+            print("⚠️ Error: Please enter a valid number.")
+
+
+def main():
+    print("\n🌟 Welcome to the Ultimate Bank System! 🌟")
+    account = open_account()
+    run_menu(account)
+
+
+if __name__ == "__main__":
+    main()
