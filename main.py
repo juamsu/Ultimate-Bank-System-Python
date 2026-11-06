@@ -2,7 +2,7 @@ import copy
 
 from account import BankAccount, validate_name
 from errors import BankError, InvalidAmountError, InvalidNameError
-from repository import AccountRepository
+from repository import FileAccountRepository
 
 # --- Menu options ---
 OPTION_DEPOSIT = 1
@@ -101,7 +101,7 @@ def run_menu(account, repository):
 
 def main():
     print("\n🌟 Welcome to the Ultimate Bank System! 🌟")
-    repository = AccountRepository()
+    repository = FileAccountRepository()
     try:
         account = open_account(repository)
         run_menu(account, repository)

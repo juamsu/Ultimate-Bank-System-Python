@@ -1,12 +1,24 @@
 import os
+from abc import ABC, abstractmethod
 
 from account import BankAccount
 from errors import StorageError
 
 
-class AccountRepository:
-    """Stores the accounts in a text file, one 'name,balance' record per line."""
+class AccountRepository(ABC):
+    """Abstraction the application depends on: any storage must offer load and save."""
 
+    @abstractmethod
+    def load(self, name):
+        """Return the BankAccount stored under this name, or None."""
+
+    @abstractmethod
+    def save(self, account):
+        """Persist the account."""
+
+
+class FileAccountRepository(AccountRepository):
+    """Stores the accounts in a text file, one 'name,balance' record per line."""
     def __init__(self, file_name="accounts.txt"):
         self.file_name = file_name
 
