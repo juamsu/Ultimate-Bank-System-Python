@@ -1,5 +1,22 @@
 import os
 
+
+class BankError(Exception):
+    """Base class for all the errors raised by this application."""
+
+
+class InvalidAmountError(BankError):
+    """The amount is not valid for the requested operation."""
+
+
+class InsufficientFundsError(BankError):
+    """The account does not have enough balance for the withdrawal."""
+
+
+class StorageError(BankError):
+    """The accounts file could not be read, written or is corrupt."""
+
+
 class BankAccount:
     FILE_NAME = "accounts.txt"  # File to store account records
 
@@ -10,47 +27,70 @@ class BankAccount:
 
     def deposit(self, amount):
         """Deposit money into the account and update the file."""
-        if amount > 0:
-            self.__balance += amount
-            print(f"💰 Successfully deposited ${amount} | New Balance: ${self.__balance}")
-            self.update_account_file()
-        else:
-            print("❌ Invalid deposit amount! Please enter a positive number.")
+        if amount <= 0:
+            raise InvalidAmountError("Invalid deposit amount! Please enter a positive number.")
+        self._save_balance(self.__balance + amount)
+        print(f"💰 Successfully deposited ${amount} | New Balance: ${self.__balance}")
 
     def withdraw(self, amount):
         """Withdraw money if sufficient balance is available and update the file."""
         if amount > self.__balance:
-            print("❌ Insufficient funds! Transaction failed.")
-        elif amount <= 0:
-            print("❌ Invalid withdrawal amount! Please enter a positive number.")
-        else:
-            self.__balance -= amount
-            print(f"💸 Withdrawn: ${amount} | Remaining Balance: ${self.__balance}")
-            self.update_account_file()
+            raise InsufficientFundsError("Insufficient funds! Transaction failed.")
+        if amount <= 0:
+            raise InvalidAmountError("Invalid withdrawal amount! Please enter a positive number.")
+        self._save_balance(self.__balance - amount)
+        print(f"💸 Withdrawn: ${amount} | Remaining Balance: ${self.__balance}")
 
     def display_balance(self):
         """Show current account balance."""
         print(f"📊 Current Balance for {self.holder_name}: ${self.__balance}")
 
+    def _save_balance(self, new_balance):
+        """Change the balance and persist it; undo the change if saving fails."""
+        previous = self.__balance
+        self.__balance = new_balance
+        try:
+            self.update_account_file()
+        except StorageError:
+            self.__balance = previous
+            raise
+
     @classmethod
     def _read_accounts(cls):
         """Return a dict {name: balance} with every record stored in the file."""
         accounts = {}
-        if os.path.exists(cls.FILE_NAME):
-            with open(cls.FILE_NAME, "r") as file:
-                for line in file:
-                    name, balance = line.strip().split(",")
-                    accounts[name] = float(balance)
+        if not os.path.exists(cls.FILE_NAME):
+            return accounts
+        try:
+            with open(cls.FILE_NAME, "r", encoding="utf-8") as file:
+                for number, line in enumerate(file, start=1):
+                    line = line.strip()
+                    if not line:
+                        continue  # blank lines are ignored
+                    try:
+                        name, balance = line.split(",")
+                        accounts[name] = float(balance)
+                    except ValueError as error:
+                        raise StorageError(
+                            f"Corrupt record in {cls.FILE_NAME}, line {number}: {line!r}"
+                        ) from error
+        except OSError as error:
+            raise StorageError(f"Could not read {cls.FILE_NAME}: {error}") from error
         return accounts
 
     def update_account_file(self):
-        """Update the account record in the file."""
+        """Update the account record in the file (atomic write)."""
         accounts = self._read_accounts()
         accounts[self.holder_name] = self.__balance
 
-        with open(self.FILE_NAME, "w") as file:
-            for name, balance in accounts.items():
-                file.write(f"{name},{balance}\n")
+        temp_file = self.FILE_NAME + ".tmp"
+        try:
+            with open(temp_file, "w", encoding="utf-8") as file:
+                for name, balance in accounts.items():
+                    file.write(f"{name},{balance}\n")
+            os.replace(temp_file, self.FILE_NAME)
+        except OSError as error:
+            raise StorageError(f"Could not write {self.FILE_NAME}: {error}") from error
 
     @classmethod
     def load_account(cls, name):
@@ -126,12 +166,17 @@ def run_menu(account):
                 action(account)
         except ValueError:
             print("⚠️ Error: Please enter a valid number.")
+        except BankError as error:
+            print(f"❌ {error}")
 
 
 def main():
     print("\n🌟 Welcome to the Ultimate Bank System! 🌟")
-    account = open_account()
-    run_menu(account)
+    try:
+        account = open_account()
+        run_menu(account)
+    except BankError as error:
+        print(f"❌ {error}")
 
 
 if __name__ == "__main__":
